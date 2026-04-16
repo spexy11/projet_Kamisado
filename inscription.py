@@ -4,10 +4,10 @@ import threading
 import struct
 
 
-SERVER_IP = "172.17.10.124"
+SERVER_IP = "172.17.10.46"
 SERVER_PORT = 3000
 MY_PORT = 5050
-MY_NAME = "Mon_IA_Super_Cool"
+MY_NAME = "ilyes et benoit contre le reste du monde "
 MATRICULES = ["22001"]
 FORMAT = "utf-8"
 
