@@ -18,22 +18,46 @@ class Board:
 
     def get_legal_moves(self):
         """Retourne les coups possibles pour la tour de couleur self.active_color"""
-        
         # Logique : trouver la tour, vérifier les cases libres devant elle
-        pass
 
     def make_move(self, move):
-        """Exécute le coup et prépare le tour suivant"""
-        # 1. Déplacer la tour
-        # 2. Identifier la couleur de la case d'arrivée
-        # 3. Mettre à jour self.active_color pour l'adversaire
-        # 4. Sauvegarder dans l'historique
-        pass
+    # 1. Sauvegarder l'état actuel avant modification
+        state = {
+                'active_color': self.active_color,
+                'last_move': move,
+                'player': self.current_player
+                }
+        self.history.append(state)
+
+        # 2. Déplacer la tour dans votre structure de données
+        origin, destination = move
+        piece = self.board_dict[origin]
+        self.board_dict[destination] = piece
+        del self.board_dict[origin]
+
+        # 3. Déterminer la prochaine couleur active
+        # La couleur de la case d'arrivée impose la tour de l'adversaire
+        dest_row, dest_col = destination
+        self.active_color = self.board[dest_row][dest_col]
+    
+        # 4. Changer de joueur
+        self.current_player *= -1
 
     def undo_move(self):
-        """Revient à l'état précédent"""
-        # Utilise l'historique pour remettre la tour et l'active_color à l'état précédent
-        pass
+        if not self.history: return
+    
+        prev_state = self.history.pop()
+        move = prev_state['last_move']
+        origin, destination = move
+    
+        # Replacer la pièce
+        piece = self.board_dict[destination]
+        self.board_dict[origin] = piece
+        del self.board_dict[destination]
+    
+        # Restaurer l'état
+        self.active_color = prev_state['active_color']
+        self.current_player = prev_state['player']
 
     def get_distance_to_goal(self, piece):
         """Utile pour l'heuristique"""
