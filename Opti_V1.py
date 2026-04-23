@@ -1,130 +1,166 @@
-import time
 import Kamisado_S0 as S0
-import inscription as ins
 
 class Board:
     def __init__(self):
-        self.board = S0.BOARD          # Plateau 8x8 avec couleurs de cases
-        self.piece_positions = {}      # Dictionnaire pour accès rapide aux tours
+        # S0.BOARD doit être une matrice 8x8 des couleurs de cases
+        self.board_colors = S0.BOARD           
         self.current_player = 1        # 1 pour Blanc, -1 pour Noir
-        self.active_color = None       # La couleur de tour imposée au joueur actuel
-        self.move_history = []         # Pour l'undo_move
+        self.active_color = None       # Couleur de la tour imposée
+        self.move_history = []         
+        
+        # Initialisation des positions des pièces
+        # (Joueur, Couleur): (ligne, colonne)
+        self.piece_positions = self._setup_pieces()
+        self.occupied_positions = set(self.piece_positions.values())
 
-    def get_tile_color(self):
-        if ins.request.get("request") == "play":
-            state = ins.request.get('state')
-            self.active_color = self.board[state]
-        return self.active_color
+    def _setup_pieces(self):
+        # Configuration initiale standard du Kamisado
+        # Blancs en ligne 0, Noirs en ligne 7
+        pos = {}
+        for col in range(8):
+            color = self.board_colors[0][col]
+            pos[(1, color)] = (0, col)
+            color_noir = self.board_colors[7][col]
+            pos[(-1, color_noir)] = (7, col)
+        return pos
+
+    def get_directions(self, player):
+        # Blanc (1) descend (vers 7), Noir (-1) monte (vers 0)
+        return [(1, 0), (1, 1), (1, -1)] if player == 1 else [(-1, 0), (-1, 1), (-1, -1)]
+
+    def get_legal_moves_for_tower(self, current_pos, player):
+        moves = []
+        r, c = current_pos
+        for dr, dc in self.get_directions(player):
+            for dist in range(1, 8):
+                nr, nc = r + dr * dist, c + dc * dist
+                if 0 <= nr < 8 and 0 <= nc < 8:
+                    if (nr, nc) in self.occupied_positions:
+                        break
+                    moves.append((nr, nc))
+                else:
+                    break
+        return moves
 
     def get_legal_moves(self):
-        """Retourne les coups possibles pour la tour de couleur self.active_color"""
-        # Logique : trouver la tour, vérifier les cases libres devant elle
+        # Au premier tour, le blanc choisit n'importe quelle tour
+        if self.active_color is None:
+            all_moves = []
+            for color in range(8):
+                pos = self.piece_positions[(self.current_player, color)]
+                all_moves.extend([(pos, m) for m in self.get_legal_moves_for_tower(pos, self.current_player)])
+            return all_moves
+        
+        pos = self.piece_positions[(self.current_player, self.active_color)]
+        raw_moves = self.get_legal_moves_for_tower(pos, self.current_player)
+        return [(pos, m) for m in raw_moves]
 
     def make_move(self, move):
-    # 1. Sauvegarder l'état actuel avant modification
-        state = {
-                'active_color': self.active_color,
-                'last_move': move,
-                'player': self.current_player
-                }
-        self.history.append(state)
+        origin, dest = move
+        # Sauvegarde pour undo
+        state = (self.active_color, self.current_player, origin, dest)
+        self.move_history.append(state)
 
-        # 2. Déplacer la tour dans votre structure de données
-        origin, destination = move
-        piece = self.board_dict[origin]
-        self.board_dict[destination] = piece
-        del self.board_dict[origin]
-
-        # 3. Déterminer la prochaine couleur active
-        # La couleur de la case d'arrivée impose la tour de l'adversaire
-        dest_row, dest_col = destination
-        self.active_color = self.board[dest_row][dest_col]
-    
-        # 4. Changer de joueur
+        # Trouver quelle pièce est à l'origine
+        for (p, c), pos in self.piece_positions.items():
+            if pos == origin:
+                target_piece = (p, c)
+                break
+        
+        # Mise à jour
+        self.piece_positions[target_piece] = dest
+        self.occupied_positions.remove(origin)
+        self.occupied_positions.add(dest)
+        
+        # Prochaine couleur active = couleur de la case d'arrivée
+        self.active_color = self.board_colors[dest[0]][dest[1]]
         self.current_player *= -1
 
     def undo_move(self):
-        if not self.history: return
-    
-        prev_state = self.history.pop()
-        move = prev_state['last_move']
-        origin, destination = move
-    
-        # Replacer la pièce
-        piece = self.board_dict[destination]
-        self.board_dict[origin] = piece
-        del self.board_dict[destination]
-    
-        # Restaurer l'état
-        self.active_color = prev_state['active_color']
-        self.current_player = prev_state['player']
+        if not self.move_history: return
+        act_col, prev_player, origin, dest = self.move_history.pop()
+        
+        # Trouver la pièce à déplacer en arrière
+        for (p, c), pos in self.piece_positions.items():
+            if pos == dest:
+                target_piece = (p, c)
+                break
+        
+        self.piece_positions[target_piece] = origin
+        self.occupied_positions.remove(dest)
+        self.occupied_positions.add(origin)
+        
+        self.active_color = act_col
+        self.current_player = prev_player
 
-    def get_distance_to_goal(self, piece):
-        """Utile pour l'heuristique"""
-        # Retourne le nombre de cases séparant la tour de la ligne de fond adverse
-        pass
+    def is_winner(self, player):
+        goal_row = 7 if player == 1 else 0
+        for (p, c), pos in self.piece_positions.items():
+            if p == player and pos[0] == goal_row:
+                return True
+        return False
 
-def evaluate_board(board, color_to_move):
-    """
-    Heuristique relative : un score positif est bon pour color_to_move.
-    """
+    def is_game_over(self):
+        return self.is_winner(1) or self.is_winner(-1) or len(self.get_legal_moves()) == 0
+
+    def get_distance_to_goal(self, player, color):
+        pos = self.piece_positions[(player, color)]
+        return abs((7 if player == 1 else 0) - pos[0])
+
+    def preview_distance(self, move):
+        # Utilisé pour le tri des coups (Move Ordering)
+        return abs((7 if self.current_player == 1 else 0) - move[1][0])
+
+# --- Fonctions de l'IA ---
+
+def evaluate_board(board):
+    if board.is_winner(1): return 10000
+    if board.is_winner(-1): return -10000
+    
     score = 0
-    opponent = board.get_opponent(color_to_move)
-
-    # 1. Vérification de victoire immédiate
-    if board.is_winner(color_to_move): return 99999
-    if board.is_winner(opponent): return -99999
-
-    for color in [color_to_move, opponent]:
-        multiplier = 1 if color == color_to_move else -1
-        
-        # Récupération de la tour active pour ce joueur
-        tower = board.get_active_tower(color)
-        
-        # A. Progression (Poids: 20)
-        # On favorise les tours proches de la ligne adverse
-        dist = board.get_distance_to_goal(tower)
-        score += multiplier * (7 - dist) * 20
-
-        # B. Mobilité (Poids: 5)
-        # Plus une tour a d'options, plus elle est dangereuse
-        moves = board.get_legal_moves(tower)
-        score += multiplier * len(moves) * 5
-
-        # C. Danger de blocage (Deadlock)
-        # Si la tour n'a aucun mouvement, c'est un malus énorme
-        if len(moves) == 0:
-            score -= multiplier * 100
-
+    for p, c in board.piece_positions.keys():
+        mult = 1 if p == 1 else -1
+        # Progression
+        dist = board.get_distance_to_goal(p, c)
+        score += mult * (7 - dist) * 10
+        # Mobilité
+        pos = board.piece_positions[(p, c)]
+        moves = board.get_legal_moves_for_tower(pos, p)
+        score += mult * len(moves) * 2
+    
     return score
 
 def negamax(board, depth, alpha, beta, color):
-    # 1. Cas de base
     if depth == 0 or board.is_game_over():
-        # On multiplie par 'color' pour que l'évaluation soit 
-        # toujours du point de vue du joueur actuel
-        return color * evaluate_board(board, board.current_player)
+        return color * evaluate_board(board)
 
-    # 2. Tri des coups (Move Ordering) pour optimiser le pruning
     moves = board.get_legal_moves()
-    # Astuce : Trier les coups par progression pour couper l'arbre plus vite
+    # Tri des coups : on teste les plus profonds d'abord
     moves.sort(key=lambda m: board.preview_distance(m), reverse=True)
 
     max_eval = -float('inf')
-
     for move in moves:
         board.make_move(move)
-        
-        # Appel récursif : on inverse les rôles et les bornes alpha/beta
         eval = -negamax(board, depth - 1, -beta, -alpha, -color)
-        
         board.undo_move()
-
+        
         max_eval = max(max_eval, eval)
         alpha = max(alpha, eval)
-        
-        # Coupure Alpha-Beta
         if alpha >= beta:
             break
-            
     return max_eval
+
+def get_best_move(board, depth):
+    best_move = None
+    max_val = -float('inf')
+    alpha = -float('inf')
+    beta = float('inf')
+    
+    for move in board.get_legal_moves():
+        board.make_move(move)
+        val = -negamax(board, depth - 1, -beta, -alpha, -board.current_player)
+        board.undo_move()
+        if val > max_val:
+            max_val = val
+            best_move = move
+    return best_move

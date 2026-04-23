@@ -4,7 +4,7 @@ import threading
 import struct
 
 
-SERVER_IP = "172.17.10.130"
+SERVER_IP = "172.17.10.125"
 SERVER_PORT = 3000
 MY_PORT = 5050
 MY_NAME = "ilyes et benoit contre le reste du monde "
