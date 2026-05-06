@@ -61,3 +61,16 @@ Après l'exception l'algorithme retourne le meilleur score et le meilleur coup q
 # Test 
 
 Un fichier pytest que l'on a utilisé pendant le développement pour vérifier que les fonctions développées étaient bien fonctionnelles et déboguer quand il y avait des problèmes.
+
+# bibliotheque utiliser : 
+pytest : pour faire des testes des differents fonctions de du programe .
+
+socket : "Gère les communications réseau bidirectionnelles via des sockets TCP/UDP, permettant une connectivité robuste entre le client et le serveur."
+
+json : "Assure la sérialisation et la désérialisation des données pour un échange d'informations structuré et léger."
+
+threading : "Optimise les performances grâce au multithreading, permettant au serveur de gérer plusieurs connexions simultanées sans blocage."
+
+struct : "Utilisé pour l'empaquetage des données binaires (sérialisation C-style), garantissant une gestion précise de la taille des paquets et de l'endianness."
+
+copy : "Permet la manipulation sécurisée d'objets complexes via des copies profondes (deep copies), évitant ainsi les effets de bord lors de la gestion d'états partagés."

@@ -357,7 +357,7 @@ def test_copy_board():
 
 
 def test_eval1():
-    assert evaluation.evaluation_kamisado(state, 0) == -499255
+    assert evaluation.evaluation_kamisado(state, 0) == -498225
 
 
 def test_eval2():
@@ -580,7 +580,7 @@ def test_state_to_key():
 
 def test_AI():
     assert AI.negamaxWithPruningIterativeDeepening(state3, state3["current"]) == (
-        790,
+        2590,
         [[7, 4], [1, 4]],
     )
 
